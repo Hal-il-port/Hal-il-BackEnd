@@ -12,6 +12,7 @@ import Scheduler.Repository.FriendRepository;
 import Scheduler.Repository.TeamInvitationRepository;
 import Scheduler.Repository.TeamRepository;
 import Scheduler.Repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,12 +22,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class FriendService {
     private final FriendRepository friendRepository;
     private final UserRepository userRepository;
-    private final TeamRepository teamRepository;
-    private final TeamInvitationRepository teamInvitationRepository;
 
     public void sendRequest(String fromEmail, FriendRequestDto request) {
         User fromUser = userRepository.findByEmail(fromEmail)
@@ -59,7 +59,11 @@ public class FriendService {
                 .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
         Friend friend = friendRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("요청 없음"));
-        if (!friend.getToUser().equals(user)) throw new IllegalArgumentException("권한 없음");
+
+        // equals 대신 ID 비교
+        if (!friend.getToUser().getId().equals(user.getId()))
+            throw new IllegalArgumentException("권한 없음");
+
         friend.setAccepted(true);
         friendRepository.save(friend);
     }
@@ -91,32 +95,6 @@ public class FriendService {
                 .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
         int total = friendRepository.countAllFriends(user);
         return new FriendCountResponseDto(total);
-    }
-
-    public void inviteFriendsToTeam(String inviterEmail, TeamFriendInviteRequest request) {
-        User inviter = userRepository.findByEmail(inviterEmail)
-                .orElseThrow(() -> new IllegalArgumentException("초대자 정보 없음"));
-        Team team = teamRepository.findById(request.getTeamId())
-                .orElseThrow(() -> new IllegalArgumentException("팀 없음"));
-
-        for (Long friendId : request.getFriendIds()) {
-            User friend = userRepository.findById(friendId)
-                    .orElseThrow(() -> new IllegalArgumentException("해당 유저 없음"));
-
-            boolean alreadyInvited = teamInvitationRepository.existsByTeamAndToUser(team, friend);
-            if (alreadyInvited) continue;
-
-            String token = UUID.randomUUID().toString();
-
-            TeamInvitation invitation = TeamInvitation.builder()
-                    .team(team)
-                    .fromUser(inviter)
-                    .toUser(friend)
-                    .inviteToken(token)
-                    .accepted(false)
-                    .build();
-            teamInvitationRepository.save(invitation);
-        }
     }
 
     public List<FriendResponseDto> searchFriends(String email, String keyword) {

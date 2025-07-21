@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Todo {
+public class Schedule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,7 +28,7 @@ public class Todo {
     private Status status; // IN_PROGRESS, DONE
 
     @Enumerated(EnumType.STRING)
-    private TodoType type; // PERSONAL, TEAM
+    private ScheduleType type; // PERSONAL, TEAM
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -56,7 +56,7 @@ public class Todo {
         IN_PROGRESS, DONE
     }
 
-    public enum TodoType {
+    public enum ScheduleType {
         PERSONAL, TEAM
     }
 }

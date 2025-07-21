@@ -1,6 +1,8 @@
 package Scheduler.Service;
 
+import Scheduler.Dto.Friend.TeamFriendInviteRequest;
 import Scheduler.Dto.Team.*;
+import Scheduler.Dto.UserSearchResponseDto;
 import Scheduler.Entity.Team;
 import Scheduler.Entity.TeamInvitation;
 import Scheduler.Entity.TeamMember;
@@ -9,6 +11,7 @@ import Scheduler.Repository.TeamInvitationRepository;
 import Scheduler.Repository.TeamMemberRepository;
 import Scheduler.Repository.TeamRepository;
 import Scheduler.Repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,10 +19,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class TeamService {
 
@@ -28,23 +33,81 @@ public class TeamService {
     private final TeamInvitationRepository teamInvitationRepository;
     private final UserRepository userRepository;
 
-    public TeamResponseDto createTeam(String email, TeamCreateRequestDto request) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
+    public List<UserSearchResponseDto> searchUsersForTeamInvite(String keyword, String email) {
+        User requester = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
 
-        Team team = Team.builder()
-                .name(request.getName())
-                .build();
+        return userRepository.findByNameContainingOrEmailContaining(keyword, keyword).stream()
+                .filter(user -> !user.getId().equals(requester.getId()))
+                .map(user -> new UserSearchResponseDto(user.getId(), user.getName(), user.getEmail()))
+                .collect(Collectors.toList());
+    }
+
+    public TeamResponseDto createTeam(String inviterEmail, TeamCreateRequestDto request) {
+        User inviter = userRepository.findByEmail(inviterEmail)
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+
+        Team team = Team.builder().name(request.getName()).build();
         teamRepository.save(team);
 
-        TeamMember member = TeamMember.builder()
-                .team(team)
-                .user(user)
-                .role("LEADER")
-                .build();
-        teamMemberRepository.save(member);
+        // 리더는 즉시 팀 멤버로 등록
+        teamMemberRepository.save(TeamMember.builder()
+                .team(team).user(inviter).role("LEADER").build());
 
-        return new TeamResponseDto(team.getId(), team.getName(), team.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        // 초대는 초대 테이블에 저장 (수락 여부는 이후 처리)
+        inviteUsersToTeam(inviterEmail, new TeamInviteRequestDto(null,team.getId(), request.getUserIds()));
+
+        return new TeamResponseDto(
+                team.getId(),
+                team.getName(),
+                team.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+        );
+    }
+
+    public void inviteUsersToTeam(String inviterEmail, TeamInviteRequestDto request) {
+        User inviter = userRepository.findByEmail(inviterEmail)
+                .orElseThrow(() -> new IllegalArgumentException("초대자 정보 없음"));
+        Team team = teamRepository.findById(request.getTeamId())
+                .orElseThrow(() -> new IllegalArgumentException("팀 없음"));
+
+        for (Long userId : request.getUserIds()) {
+            User invitee = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("해당 유저 없음"));
+
+            boolean alreadyInvited = teamInvitationRepository.existsByTeamAndToUser(team, invitee);
+            if (alreadyInvited) continue;
+
+            String token = UUID.randomUUID().toString();
+
+            TeamInvitation invitation = TeamInvitation.builder()
+                    .team(team)
+                    .fromUser(inviter)
+                    .toUser(invitee)
+                    .inviteToken(token)
+                    .accepted(false)
+                    .build();
+            teamInvitationRepository.save(invitation);
+        }
+    }
+
+    public List<TeamInviteResponseDto> getMyInvitations(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
+
+        List<TeamInvitation> invitations = teamInvitationRepository.findByToUserAndAcceptedFalse(user);
+
+        return invitations.stream()
+                .map(invite -> {
+                    TeamInviteResponseDto dto = new TeamInviteResponseDto();
+                    dto.setInvitationId(invite.getId());
+                    dto.setTeamId(invite.getTeam().getId());
+                    dto.setTeamName(invite.getTeam().getName());
+                    dto.setFromUserName(invite.getFromUser().getName());
+                    dto.setInviteToken(invite.getInviteToken());
+                    // inviteUrl은 필요하면 여기서 set 해주세요
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
     public List<TeamResponseDto> getMyTeams(String email) {
@@ -78,38 +141,38 @@ public class TeamService {
                 team.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), members);
     }
 
-    public List<TeamInviteResponseDto> inviteMultipleMembers(Long teamId, String requesterEmail, TeamInviteRequestDto request) {
-        User requester = userRepository.findByEmail(requesterEmail)
-                .orElseThrow(() -> new IllegalArgumentException("요청자 없음"));
-
-        if (!teamMemberRepository.existsByTeamIdAndUserId(teamId, requester.getId())) {
-            throw new IllegalArgumentException("해당 팀의 멤버가 아닙니다");
-        }
-
-        Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("팀 없음"));
-
-        List<TeamInviteResponseDto> result = new ArrayList<>();
-
-        for (String email : request.getEmails()) {
-            String token = UUID.randomUUID().toString();
-
-            TeamInvitation invitation = TeamInvitation.builder()
-                    .email(email)
-                    .inviteToken(token)
-                    .expiresAt(LocalDateTime.now().plusDays(3))
-                    .team(team)
-                    .build();
-            teamInvitationRepository.save(invitation);
-
-            String inviteUrl = "http://localhost:8080/api/signup?token=" + token;
-            result.add(new TeamInviteResponseDto(email, inviteUrl));
-
-            System.out.println("[초대 로그] " + email + " → " + inviteUrl);
-        }
-
-        return result;
-    }
+//    public List<TeamInviteResponseDto> inviteMultipleMembers(Long teamId, String requesterEmail, TeamInviteRequestDto request) {
+//        User requester = userRepository.findByEmail(requesterEmail)
+//                .orElseThrow(() -> new IllegalArgumentException("요청자 없음"));
+//
+//        if (!teamMemberRepository.existsByTeamIdAndUserId(teamId, requester.getId())) {
+//            throw new IllegalArgumentException("해당 팀의 멤버가 아닙니다");
+//        }
+//
+//        Team team = teamRepository.findById(teamId)
+//                .orElseThrow(() -> new IllegalArgumentException("팀 없음"));
+//
+//        List<TeamInviteResponseDto> result = new ArrayList<>();
+//
+//        for (String email : request.getEmails()) {
+//            String token = UUID.randomUUID().toString();
+//
+//            TeamInvitation invitation = TeamInvitation.builder()
+//                    .email(email)
+//                    .inviteToken(token)
+//                    .expiresAt(LocalDateTime.now().plusDays(3))
+//                    .team(team)
+//                    .build();
+//            teamInvitationRepository.save(invitation);
+//
+//            String inviteUrl = "http://localhost:8080/api/signup?token=" + token;
+//            result.add(new TeamInviteResponseDto(email, inviteUrl));
+//
+//            System.out.println("[초대 로그] " + email + " → " + inviteUrl);
+//        }
+//
+//        return result;
+//    }
 
     public void deleteTeam(Long teamId, String email) {
         User user = userRepository.findByEmail(email)
@@ -139,5 +202,38 @@ public class TeamService {
         }
 
         teamMemberRepository.deleteByTeamIdAndUserId(teamId, user.getId());
+    }
+
+    public void acceptInvitation(Long invitationId, String userEmail) {
+        TeamInvitation invitation = teamInvitationRepository.findById(invitationId)
+                .orElseThrow(() -> new IllegalArgumentException("초대가 존재하지 않습니다."));
+
+        if (!invitation.getToUser().getEmail().equals(userEmail)) {
+            throw new IllegalStateException("초대받은 사용자만 수락할 수 있습니다.");
+        }
+
+        if (invitation.isAccepted()) return;
+
+        invitation.setAccepted(true);
+        teamInvitationRepository.save(invitation);
+
+        teamMemberRepository.save(
+                TeamMember.builder()
+                        .team(invitation.getTeam())
+                        .user(invitation.getToUser())
+                        .role("MEMBER")
+                        .build()
+        );
+    }
+
+    public void rejectInvitation(Long invitationId, String userEmail) {
+        TeamInvitation invitation = teamInvitationRepository.findById(invitationId)
+                .orElseThrow(() -> new IllegalArgumentException("초대가 존재하지 않습니다."));
+
+        if (!invitation.getToUser().getEmail().equals(userEmail)) {
+            throw new IllegalStateException("초대받은 사용자만 거절할 수 있습니다.");
+        }
+
+        teamInvitationRepository.delete(invitation);
     }
 }

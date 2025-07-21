@@ -29,9 +29,10 @@ public class Team {
     }
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    @Builder.Default
     private List<TeamMember> members = new ArrayList<>();
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    @Builder.Default
     private List<TeamInvitation> invitations = new ArrayList<>();
-
 }
