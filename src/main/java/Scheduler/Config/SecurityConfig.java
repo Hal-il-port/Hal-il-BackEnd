@@ -32,9 +32,15 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors() // ✅ CORS 허용 추가
+                .and()
                 .csrf().disable()
                 .authorizeHttpRequests()
-                .requestMatchers("/api/auth/**", "/api/signup", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                .requestMatchers("/api/auth/**", "/api/signup",  "/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/swagger-ui/index.html",
+                        "/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated()
                 .and()
                 .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService), UsernamePasswordAuthenticationFilter.class);
@@ -71,11 +77,17 @@ public class SecurityConfig {
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                    System.out.println("Authentication success for user: " + email);
                 } catch (Exception e) {
+                    System.out.println("JWT validation failed: " + e.getMessage());
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     return;
                 }
+            } else {
+                System.out.println("No Authorization header found or does not start with Bearer");
             }
+
+            System.out.println("Authentication in context: " + SecurityContextHolder.getContext().getAuthentication());
             filterChain.doFilter(request, response);
         }
     }
