@@ -59,4 +59,6 @@ jobs:
                         nohup setsid java -jar "$LATEST_JAR" > app.log 2>&1 < /dev/null &
 
                         sleep 10
+            
                         echo "Application restart command issued. Check app.log on EC2 for status."
+                        exit 0
