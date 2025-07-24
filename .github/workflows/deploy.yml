@@ -46,30 +46,31 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
+
             LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/*.jar | head -n1)
             echo "Latest JAR found: $LATEST_JAR"
 
-            RESTART_SCRIPT="""
-            #!/bin/bash
+            cat <<EOF > /tmp/restart_app.sh
             if pgrep -f "${{ secrets.JAR_NAME }}"; then
               echo "Killing existing process for ${{ secrets.JAR_NAME }}"
               pkill -f "${{ secrets.JAR_NAME }}"
-              sleep 5 
+              sleep 5
             else
               echo "No existing process for ${{ secrets.JAR_NAME }} found."
             fi
 
+           
             echo "Starting application with JAR: $LATEST_JAR"
-            nohup setsid env \\
-              SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \\
-              SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}" \\
-              SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \\
-              java -jar "$LATEST_JAR" \\
+            nohup setsid env \
+              SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \
+              SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}" \
+              SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              java -jar "$LATEST_JAR" \
               > ${{ secrets.EC2_TARGET_PATH }}/app.log 2>&1 < /dev/null &
 
             echo "Application restart script completed."
-            """
-            echo "$RESTART_SCRIPT" > /tmp/restart_app.sh
+            EOF
+
             chmod +x /tmp/restart_app.sh
 
             echo "Scheduling application restart via 'at' command."
