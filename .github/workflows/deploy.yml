@@ -76,4 +76,4 @@ jobs:
             /tmp/restart_app.sh | at now
 
             echo "Application restart scheduled. GitHub Actions will now exit."
-            exit 0 # SSH 액션이 성공적으로 종료되도록 명시적으로 exit 0
+            exit 0
