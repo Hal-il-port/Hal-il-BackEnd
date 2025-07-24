@@ -60,5 +60,6 @@ jobs:
 
                         sleep 10
             
+            
                         echo "Application restart command issued. Check app.log on EC2 for status."
                         exit 0
