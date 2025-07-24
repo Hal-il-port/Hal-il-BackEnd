@@ -48,7 +48,9 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           script: |
             # EC2 대상 경로에서 최신 JAR 파일 찾기
-            LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/*.jar | head -n1)
+            # secrets.EC2_TARGET_PATH가 JAR 파일의 상위 디렉토리(예: /home/ubuntu/test)라고 가정하고,
+            # JAR 파일은 그 안에 있는 'build/libs' 디렉토리에 복사됩니다.
+            LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/build/libs/*.jar | head -n1)
             echo "Latest JAR found: $LATEST_JAR"
 
             # 애플리케이션 재시작 스크립트를 임시 파일로 생성
@@ -89,7 +91,7 @@ jobs:
             at -f /tmp/restart_app.sh now <<EOF_AT_VARS
             JAR_NAME="${{ secrets.JAR_NAME }}"
             LATEST_JAR_PATH="$LATEST_JAR"
-            APP_LOG_PATH="${{ secrets.EC2_TARGET_PATH }}/app.log"
+            APP_LOG_PATH="${{ secrets.EC2_TARGET_PATH }}/build/libs/app.log" # app.log 경로도 수정
             SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}"
             SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}"
             SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}"
