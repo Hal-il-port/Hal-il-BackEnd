@@ -45,10 +45,6 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-                        export DB_USERNAME=${{ secrets.DB_USERNAME }}
-                        export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-                        export SPRING_DATASOURCE_URL=jdbc:mysql://database-1.cfmcq2wqsndr.ap-southeast-2.rds.amazonaws.com:3306/Scheduler?useSSL=false&serverTimezone=Asia/Seoul
-                        
                         if pgrep -f "${{ secrets.JAR_NAME }}"; then
                           echo "Killing existing process for ${{ secrets.JAR_NAME }}"
                           pkill -f "${{ secrets.JAR_NAME }}"
@@ -59,6 +55,10 @@ jobs:
 
                         LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/*.jar | head -n1)
                         echo "Starting application with JAR: $LATEST_JAR"
+            
+                        export DB_URL=${{ secrets.DB_URL }}
+                        export DB_USERNAME=${{ secrets.DB_USERNAME }}
+                        export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             
                         nohup setsid java -jar "$LATEST_JAR" > app.log 2>&1 < /dev/null &
 
