@@ -45,5 +45,18 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            pkill -f ${{ secrets.JAR_NAME }} || true
-            nohup java -jar ${{ secrets.EC2_TARGET_PATH }}/$(ls ${{ secrets.EC2_TARGET_PATH }} | grep '.jar' | tail -n1) > app.log 2>&1 &
+                        if pgrep -f "${{ secrets.JAR_NAME }}"; then
+                          echo "Killing existing process for ${{ secrets.JAR_NAME }}"
+                          pkill -f "${{ secrets.JAR_NAME }}"
+                          sleep 5 
+                        else
+                          echo "No existing process for ${{ secrets.JAR_NAME }} found."
+                        fi
+
+                        LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/*.jar | head -n1)
+                        echo "Starting application with JAR: $LATEST_JAR"
+
+                        nohup setsid java -jar "$LATEST_JAR" > app.log 2>&1 < /dev/null &
+
+                        sleep 10
+                        echo "Application restart command issued. Check app.log on EC2 for status."
