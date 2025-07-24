@@ -45,3 +45,7 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+jar {
+	enabled = false // 일반 JAR 생성을 비활성화하여 'plain' 접미사가 붙는 것을 방지
+}
