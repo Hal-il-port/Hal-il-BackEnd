@@ -18,6 +18,7 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      # 이 단계는 이제 필수는 아니지만, 다른 용도로 필요할 수 있으므로 유지합니다.
       - name: Inject environment variables
         run: |
           echo "DB_URL=${{ secrets.DB_URL }}" >> $GITHUB_ENV
@@ -51,15 +52,10 @@ jobs:
             echo "Latest JAR found: $LATEST_JAR"
 
             # 애플리케이션 재시작 스크립트를 임시 파일로 생성
-            # 'here document' 문법을 사용하여 스크립트 내용을 파일에 직접 작성
-            # 'EOF'를 작은따옴표로 감싸면 내부 변수가 확장되지 않고 리터럴로 처리됩니다.
-            # 하지만 여기서는 GitHub Actions 시크릿 변수가 확장되어야 하므로,
-            # 'EOF'를 작은따옴표 없이 사용하고, 내부의 쉘 변수들은
-            # `\$`와 같이 이스케이프 처리하여 `at` 명령이 실행될 때 확장되도록 합니다.
-            # 또는, 가장 확실한 방법은 GitHub Actions 변수를 외부에서 직접 주입하는 것입니다.
-            # 여기서는 `env` 명령을 사용하므로 내부 스크립트에서 변수 확장은 필요 없습니다.
-
-            cat <<EOF > /tmp/restart_app.sh
+            # 여기서는 'at' 명령에 직접 전달할 스크립트 내용을 작성합니다.
+            # GitHub Actions 시크릿 변수들은 이 시점에서 이미 실제 값으로 확장됩니다.
+            # 따라서 'nohup setsid env' 부분에 실제 시크릿 값이 들어갑니다.
+            RESTART_COMMAND="""
             #!/bin/bash
             # 기존 Java 프로세스 종료
             if pgrep -f "${{ secrets.JAR_NAME }}"; then
@@ -72,7 +68,7 @@ jobs:
 
             # 새로운 Java 애플리케이션을 백그라운드에서 시작
             # 'env' 명령을 사용하여 Spring Boot가 인식하는 환경 변수를 직접 설정합니다.
-            # 이 방식은 'setsid'로 새로운 세션이 생성되더라도 환경 변수가 정확히 전달됩니다.
+            # 이 시점에서 ${{ secrets.VAR_NAME }}은 실제 값으로 대체됩니다.
             echo "Starting application with JAR: $LATEST_JAR"
             nohup setsid env \
               SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \
@@ -82,12 +78,14 @@ jobs:
               > ${{ secrets.EC2_TARGET_PATH }}/app.log 2>&1 < /dev/null &
 
             echo "Application restart script completed."
-            EOF
+            """
 
+            # 임시 스크립트 파일 생성
+            echo "$RESTART_COMMAND" > /tmp/restart_app.sh
             chmod +x /tmp/restart_app.sh
 
             echo "Scheduling application restart via 'at' command."
-            # 수정됨: 'at -f' 옵션을 사용하여 스크립트 파일을 실행하도록 지시
+            # 'at -f' 옵션을 사용하여 스크립트 파일을 실행하도록 지시
             at -f /tmp/restart_app.sh now
 
             echo "Application restart scheduled. GitHub Actions will now exit."
