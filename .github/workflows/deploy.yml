@@ -55,11 +55,14 @@ jobs:
 
                         LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/*.jar | head -n1)
                         echo "Starting application with JAR: $LATEST_JAR"
+            
+  
+                        export DB_USERNAME=${{ secrets.DB_USERNAME }}
+                        export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
 
                         nohup setsid java -jar "$LATEST_JAR" > app.log 2>&1 < /dev/null &
 
                         sleep 10
-            
             
                         echo "Application restart command issued. Check app.log on EC2 for status."
                         exit 0
