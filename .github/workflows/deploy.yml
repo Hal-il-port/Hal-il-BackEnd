@@ -52,41 +52,48 @@ jobs:
             echo "Latest JAR found: $LATEST_JAR"
 
             # 애플리케이션 재시작 스크립트를 임시 파일로 생성
-            # 여기서는 'at' 명령에 직접 전달할 스크립트 내용을 작성합니다.
-            # GitHub Actions 시크릿 변수들은 이 시점에서 이미 실제 값으로 확장됩니다.
-            # 따라서 'nohup setsid env' 부분에 실제 시크릿 값이 들어갑니다.
-            RESTART_COMMAND="""
+            # 'here document' 문법을 사용하여 스크립트 내용을 파일에 직접 작성
+            # 'EOF_INNER_SCRIPT'를 작은따옴표로 감싸서 내부 변수가 확장되지 않고 리터럴로 처리되도록 합니다.
+            # 이렇게 하면 스크립트 내부의 쉘 문법이 손상되지 않습니다.
+            cat <<'EOF_INNER_SCRIPT' > /tmp/restart_app.sh
             #!/bin/bash
             # 기존 Java 프로세스 종료
-            if pgrep -f "${{ secrets.JAR_NAME }}"; then
-              echo "Killing existing process for ${{ secrets.JAR_NAME }}"
-              pkill -f "${{ secrets.JAR_NAME }}"
-              sleep 5 # 프로세스가 완전히 종료될 시간을 줍니다.
+            if pgrep -f "$JAR_NAME"; then
+              echo "Killing existing process for $JAR_NAME"
+              pkill -f "$JAR_NAME"
+              sleep 5
             else
-              echo "No existing process for ${{ secrets.JAR_NAME }} found."
+              echo "No existing process for $JAR_NAME found."
             fi
 
             # 새로운 Java 애플리케이션을 백그라운드에서 시작
             # 'env' 명령을 사용하여 Spring Boot가 인식하는 환경 변수를 직접 설정합니다.
-            # 이 시점에서 ${{ secrets.VAR_NAME }}은 실제 값으로 대체됩니다.
-            echo "Starting application with JAR: $LATEST_JAR"
+            # 이 변수들은 'at' 명령의 표준 입력을 통해 전달됩니다.
+            echo "Starting application with JAR: $LATEST_JAR_PATH"
             nohup setsid env \
-              SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \
-              SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}" \
-              SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-              java -jar "$LATEST_JAR" \
-              > ${{ secrets.EC2_TARGET_PATH }}/app.log 2>&1 < /dev/null &
+              SPRING_DATASOURCE_URL="$SPRING_DATASOURCE_URL" \
+              SPRING_DATASOURCE_USERNAME="$SPRING_DATASOURCE_USERNAME" \
+              SPRING_DATASOURCE_PASSWORD="$SPRING_DATASOURCE_PASSWORD" \
+              java -jar "$LATEST_JAR_PATH" \
+              > "$APP_LOG_PATH" 2>&1 < /dev/null &
 
             echo "Application restart script completed."
-            """
+            EOF_INNER_SCRIPT
 
-            # 임시 스크립트 파일 생성
-            echo "$RESTART_COMMAND" > /tmp/restart_app.sh
             chmod +x /tmp/restart_app.sh
 
             echo "Scheduling application restart via 'at' command."
             # 'at -f' 옵션을 사용하여 스크립트 파일을 실행하도록 지시
-            at -f /tmp/restart_app.sh now
-
+            # 필요한 환경 변수들을 'at' 명령에 직접 전달합니다.
+            # 이렇게 하면 /tmp/restart_app.sh 내부에서 이 변수들을 사용할 수 있습니다.
+            at -f /tmp/restart_app.sh now <<EOF_AT_VARS
+            JAR_NAME="${{ secrets.JAR_NAME }}"
+            LATEST_JAR_PATH="$LATEST_JAR"
+            APP_LOG_PATH="${{ secrets.EC2_TARGET_PATH }}/app.log"
+            SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}"
+            SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}"
+            SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}"
+            EOF_AT_VARS
+  
             echo "Application restart scheduled. GitHub Actions will now exit."
             exit 0 # SSH 액션이 성공적으로 종료되도록 명시적으로 exit 0
