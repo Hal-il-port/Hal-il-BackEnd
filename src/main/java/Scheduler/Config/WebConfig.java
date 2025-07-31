@@ -13,7 +13,7 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**") // 모든 경로에 대해
-                        .allowedOrigins("https://hali-il-react-git-default-yangjoonmins-projects.vercel.app") // 프론트 주소
+                        .allowedOrigins("hali-il-react.vercel.app") // 프론트 주소
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true); // 쿠키 등 허용 시
