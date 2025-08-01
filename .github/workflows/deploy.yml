@@ -48,7 +48,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            echo '${{ secrets.FIREBASE_ADMIN_SDK }}' > ${{ secrets.EC2_TARGET_PATH }}/src/main/resources/hal-il-project-firebase-adminsdk-fbsvc-d93ce33edb.json
+            echo '${{ secrets.FIREBASE_ADMIN_SDK }}' > ${{ secrets.EC2_TARGET_PATH }}/config/hal-il-project-firebase-adminsdk-fbsvc-d93ce33edb.json
 
       - name: SSH into EC2 and restart app
         uses: appleboy/ssh-action@v0.1.10
