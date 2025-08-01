@@ -1,6 +1,5 @@
-package Scheduler.Dto;
+package Scheduler.Dto.User;
 
-import Scheduler.Entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

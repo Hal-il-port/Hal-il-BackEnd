@@ -1,8 +1,8 @@
 package Scheduler.Controller;
 
 import Scheduler.Dto.JwtResponseDto;
-import Scheduler.Dto.UserLoginRequestDto;
-import Scheduler.Dto.UserSignupRequestDto;
+import Scheduler.Dto.User.UserLoginRequestDto;
+import Scheduler.Dto.User.UserSignupRequestDto;
 import Scheduler.Service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
