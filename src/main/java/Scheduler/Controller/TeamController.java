@@ -1,7 +1,7 @@
 package Scheduler.Controller;
 
 import Scheduler.Dto.Team.*;
-import Scheduler.Dto.UserSearchResponseDto;
+import Scheduler.Dto.User.UserSearchResponseDto;
 import Scheduler.Service.TeamService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

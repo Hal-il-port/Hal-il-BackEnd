@@ -1,7 +1,7 @@
 package Scheduler.Service;
 
-import Scheduler.Dto.UserLoginRequestDto;
-import Scheduler.Dto.UserSignupRequestDto;
+import Scheduler.Dto.User.UserLoginRequestDto;
+import Scheduler.Dto.User.UserSignupRequestDto;
 import Scheduler.Entity.User;
 import Scheduler.Repository.UserRepository;
 import Scheduler.Security.JwtUtil;

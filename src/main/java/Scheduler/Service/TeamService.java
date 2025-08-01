@@ -1,12 +1,8 @@
 package Scheduler.Service;
 
-import Scheduler.Dto.Friend.TeamFriendInviteRequest;
 import Scheduler.Dto.Team.*;
-import Scheduler.Dto.UserSearchResponseDto;
-import Scheduler.Entity.Team;
-import Scheduler.Entity.TeamInvitation;
-import Scheduler.Entity.TeamMember;
-import Scheduler.Entity.User;
+import Scheduler.Dto.User.UserSearchResponseDto;
+import Scheduler.Entity.*;
 import Scheduler.Repository.TeamInvitationRepository;
 import Scheduler.Repository.TeamMemberRepository;
 import Scheduler.Repository.TeamRepository;
@@ -15,11 +11,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -32,6 +25,7 @@ public class TeamService {
     private final TeamMemberRepository teamMemberRepository;
     private final TeamInvitationRepository teamInvitationRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public List<UserSearchResponseDto> searchUsersForTeamInvite(String keyword, String email) {
         User requester = userRepository.findByEmail(email)
@@ -87,6 +81,13 @@ public class TeamService {
                     .accepted(false)
                     .build();
             teamInvitationRepository.save(invitation);
+
+            notificationService.sendNotification(
+                    invitee.getId(),
+                    NotificationType.TEAM_INVITE,
+                    inviter.getName() + "님이 '" + team.getName() + "'에 초대했습니다.",
+                    team.getId()
+            );
         }
     }
 
@@ -223,6 +224,13 @@ public class TeamService {
                         .user(invitation.getToUser())
                         .role("MEMBER")
                         .build()
+        );
+
+        notificationService.sendNotification(
+                invitation.getFromUser().getId(),
+                NotificationType.TEAM_INVITE_ACCEPT,
+                invitation.getToUser().getName() + "님이 초대를 수락했습니다.",
+                invitation.getTeam().getId()
         );
     }
 

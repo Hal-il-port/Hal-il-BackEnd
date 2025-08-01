@@ -4,10 +4,7 @@ import Scheduler.Dto.Friend.FriendCountResponseDto;
 import Scheduler.Dto.Friend.FriendRequestDto;
 import Scheduler.Dto.Friend.FriendResponseDto;
 import Scheduler.Dto.Friend.TeamFriendInviteRequest;
-import Scheduler.Entity.Friend;
-import Scheduler.Entity.Team;
-import Scheduler.Entity.TeamInvitation;
-import Scheduler.Entity.User;
+import Scheduler.Entity.*;
 import Scheduler.Repository.FriendRepository;
 import Scheduler.Repository.TeamInvitationRepository;
 import Scheduler.Repository.TeamRepository;
@@ -27,6 +24,7 @@ import java.util.stream.Stream;
 public class FriendService {
     private final FriendRepository friendRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public void sendRequest(String fromEmail, FriendRequestDto request) {
         User fromUser = userRepository.findByEmail(fromEmail)
@@ -44,6 +42,13 @@ public class FriendService {
                 .accepted(false)
                 .build();
         friendRepository.save(friend);
+
+        notificationService.sendNotification(
+                toUser.getId(),
+                NotificationType.FRIEND_REQUEST,
+                fromUser.getName() + "님이 친구 요청을 보냈습니다.",
+                friend.getId() // 친구 요청이면 특정 페이지 이동 값 없으면 null
+        );
     }
 
     public List<FriendResponseDto> getReceivedRequests(String email) {
@@ -66,6 +71,13 @@ public class FriendService {
 
         friend.setAccepted(true);
         friendRepository.save(friend);
+
+        notificationService.sendNotification(
+                friend.getFromUser().getId(),
+                NotificationType.FRIEND_ACCEPT,
+                user.getName() + "님이 친구 요청을 수락했습니다.",
+                null
+        );
     }
 
     public void deleteFriend(String userEmail, String friendEmail) {
