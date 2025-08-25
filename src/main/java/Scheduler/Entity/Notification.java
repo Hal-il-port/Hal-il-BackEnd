@@ -31,7 +31,7 @@ public class Notification {
     @Column
     private Long targetId; // 클릭 시 이동에 필요한 대상 ID
 
-    @Column(nullable = false)
+    @Column(name = "is_read", nullable = false)
     private Boolean read = false; // 읽음 여부
 
     @Column(nullable = false)
