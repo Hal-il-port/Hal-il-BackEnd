@@ -37,15 +37,20 @@ public class FcmService {
     public void sendMessage(Long userId, String title, String body) {
         String token = tokenRepository.findByUserId(userId)
                 .map(FcmToken::getToken)
-                .orElseThrow(() -> new IllegalArgumentException("FCM 토큰이 없습니다."));
+                .orElse(null);
+
+        if (token == null || token.isBlank()) {
+            System.out.println("유저 " + userId + " 의 FCM 토큰이 없어 알림 전송을 건너뜀");
+            return;
+        }
 
         Message message = Message.builder()
                 .setToken(token)
                 .setNotification(
                         com.google.firebase.messaging.Notification.builder()
-                        .setTitle(title)
-                        .setBody(body)
-                        .build())
+                                .setTitle(title)
+                                .setBody(body)
+                                .build())
                 .build();
 
         try {

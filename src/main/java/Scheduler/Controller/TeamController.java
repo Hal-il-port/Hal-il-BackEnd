@@ -25,7 +25,7 @@ public class TeamController {
     @Operation(summary = "팀 초대용 유저 검색", description = "팀에 초대 가능한 유저를 키워드로 검색합니다.")
     @GetMapping("/search-users")
     public ResponseEntity<List<UserSearchResponseDto>> searchUsersForTeamInvite(
-            @Parameter(description = "검색 키워드", example = "김원종") @RequestParam String keyword,
+            @Parameter(description = "검색 키워드", example = "1111@example.com") @RequestParam String keyword,
             @Parameter(hidden = true) @AuthenticationPrincipal UserDetails userDetails) {
         List<UserSearchResponseDto> users = teamService.searchUsersForTeamInvite(keyword, userDetails.getUsername());
         return ResponseEntity.ok(users);
