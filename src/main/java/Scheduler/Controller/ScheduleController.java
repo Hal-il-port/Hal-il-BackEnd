@@ -68,23 +68,26 @@ public class ScheduleController {
         return ResponseEntity.ok().build();
     }
 
-    // ======================= 공휴일 API 수정 =======================
-public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
-    try {
-        String encodedKey = URLEncoder.encode(SERVICE_KEY, StandardCharsets.UTF_8);
+      // ======================= 공휴일 API =======================
+    private static final String SERVICE_KEY =
+            "j%2F5Nr278ZWTr9lpmEKCv4NpP%2Fz9t1oJIfgjq0rnvLBp6%2FESm3IwArDLeKR13Gsr2xDkFY0vGNpoYwn39JxvlqQ%3D%3D";
 
-        String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
-                + "?ServiceKey=" + encodedKey
-                + "&solYear=" + year
-                + "&solMonth=" + String.format("%02d", month)
-                + "&_type=json";
+    @Operation(summary = "공휴일", description = "공휴일 공공데이터를 가져옵니다.")
+    @GetMapping("/holidays")
+    public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
+        try {
+            String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
+                    + "?ServiceKey=" + SERVICE_KEY
+                    + "&solYear=" + year
+                    + "&solMonth=" + String.format("%02d", month)
+                    + "&_type=json";
 
-        RestTemplate restTemplate = new RestTemplate();
-        Object response = restTemplate.getForObject(url, Object.class); // JSON 그대로 반환
-        return ResponseEntity.ok(response);
+            RestTemplate restTemplate = new RestTemplate();
+            Object response = restTemplate.getForObject(url, Object.class); // JSON 그대로 반환
+            return ResponseEntity.ok(response);
 
-    } catch (Exception e) {
-        return ResponseEntity.status(500).body("공휴일 API 호출 실패: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("공휴일 API 호출 실패: " + e.getMessage());
+        }
     }
-}
 }
