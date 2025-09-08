@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -67,23 +68,20 @@ public class ScheduleController {
         scheduleService.delete(id);
         return ResponseEntity.ok().build();
     }
-    
+
+    @Value("${HOLIDAY_API_KEY}")
+    private String serviceKey;
+
     @Operation(summary = "공휴일", description = "공휴일 공공데이터를 가져옵니다.")
     @GetMapping("/holidays")
-    public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
-        try {
-            String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
-                    + "?ServiceKey=" + SERVICE_KEY
-                    + "&solYear=" + year
-                    + "&solMonth=" + String.format("%02d", month)
-                    + "&_type=json";
-
-            RestTemplate restTemplate = new RestTemplate();
-            Object response = restTemplate.getForObject(url, Object.class); // JSON 그대로 반환
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("공휴일 API 호출 실패: " + e.getMessage());
-        }
+    public ResponseEntity<String> getHolidays(@RequestParam int year, @RequestParam int month) {
+        String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
+                + "?ServiceKey=" + serviceKey
+                + "&solYear=" + year
+                + "&solMonth=" + String.format("%02d", month)
+                + "&_type=json";
+        RestTemplate restTemplate = new RestTemplate();
+        String response = restTemplate.getForObject(url, String.class);
+        return ResponseEntity.ok(response);
     }
 }
