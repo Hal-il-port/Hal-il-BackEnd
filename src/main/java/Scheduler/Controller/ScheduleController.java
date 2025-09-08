@@ -76,13 +76,11 @@ public class ScheduleController {
    @GetMapping("/holidays")
 public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
     try {
-        String encodedKey = URLEncoder.encode(serviceKey, StandardCharsets.UTF_8);
-
         String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
-                + "?ServiceKey=" + encodedKey
-                + "&solYear=" + year
-                + "&solMonth=" + String.format("%02d", month)
-                + "&_type=json";
+            + "?ServiceKey=" + serviceKey
+            + "&solYear=" + year
+            + "&solMonth=" + String.format("%02d", month)
+            + "&_type=json";
 
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
