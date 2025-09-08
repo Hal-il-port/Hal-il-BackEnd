@@ -69,19 +69,20 @@ public class ScheduleController {
     }
 
     // ======================= 공휴일 API 수정 =======================
-    private static final String SERVICE_KEY = "j/5Nr278ZWTr9lpmEKCv4NpP/z9t1oJIfgjq0rnvLBp6/ESm3IwArDLeKR13Gsr2xDkFY0vGNpoYwn39JxvlqQ==";
+private static final String SERVICE_KEY = "j/5Nr278ZWTr9lpmEKCv4NpP/z9t1oJIfgjq0rnvLBp6/ESm3IwArDLeKR13Gsr2xDkFY0vGNpoYwn39JxvlqQ==";
 
-    @Operation(summary = "공휴일", description = "공휴일 공공데이터를 가져옵니다.")
-    @GetMapping("/holidays")
-    public ResponseEntity<String> getHolidays(@RequestParam int year, @RequestParam int month) {
-        String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
-                + "?ServiceKey=" + SERVICE_KEY
-                + "&solYear=" + year
-                + "&solMonth=" + String.format("%02d", month)
-                + "&_type=json";
+@Operation(summary = "공휴일", description = "공휴일 공공데이터를 가져옵니다.")
+@GetMapping("/holidays")
+public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
+    String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
+            + "?ServiceKey=" + SERVICE_KEY
+            + "&solYear=" + year
+            + "&solMonth=" + String.format("%02d", month)
+            + "&_type=json";
 
-        RestTemplate restTemplate = new RestTemplate();
-        String response = restTemplate.getForObject(url, String.class);
-        return ResponseEntity.ok(response);
-    }
+    RestTemplate restTemplate = new RestTemplate();
+    Object response = restTemplate.getForObject(url, Object.class); // JSON 그대로 매핑
+    return ResponseEntity.ok(response);
+}
+
 }
