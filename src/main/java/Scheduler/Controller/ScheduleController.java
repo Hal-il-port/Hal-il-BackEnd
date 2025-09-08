@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
@@ -65,5 +66,15 @@ public class ScheduleController {
             @Parameter(description = "삭제할 일정 ID", example = "5") @PathVariable Long id) {
         scheduleService.delete(id);
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "공휴일", description = "공휴일 공공데이터를 가져옵니다.")
+    @GetMapping("/holidays")
+    public ResponseEntity<String> getHolidays(@RequestParam int year, @RequestParam int month) {
+        String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
+                + "?ServiceKey=YOUR_KEY&solYear=" + year + "&solMonth=" + month + "&_type=json";
+        RestTemplate restTemplate = new RestTemplate();
+        String response = restTemplate.getForObject(url, String.class);
+        return ResponseEntity.ok(response);
     }
 }
