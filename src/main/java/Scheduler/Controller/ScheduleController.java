@@ -84,9 +84,11 @@ public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam 
 
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-        System.out.println("공휴일 API 응답: " + response.getBody());
 
-        return ResponseEntity.ok(response.getBody());
+        ObjectMapper mapper = new ObjectMapper();
+        Object json = mapper.readValue(response.getBody(), Object.class);
+
+        return ResponseEntity.ok(json);
     } catch (Exception e) {
         e.printStackTrace();
         return ResponseEntity.status(500).body("공휴일 API 호출 실패: " + e.getMessage());
