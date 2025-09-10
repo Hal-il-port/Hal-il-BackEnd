@@ -3,6 +3,7 @@ package Scheduler.Controller;
 import Scheduler.Dto.Schedule.ScheduleRequestDto;
 import Scheduler.Dto.Schedule.ScheduleResponseDto;
 import Scheduler.Service.ScheduleService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -74,14 +75,24 @@ public class ScheduleController {
 
     @Operation(summary = "공휴일", description = "공휴일 공공데이터를 가져옵니다.")
     @GetMapping("/holidays")
-    public ResponseEntity<String> getHolidays(@RequestParam int year, @RequestParam int month) {
-        String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
-                + "?ServiceKey=" + serviceKey
-                + "&solYear=" + year
-                + "&solMonth=" + String.format("%02d", month)
-                + "&_type=json";
-        RestTemplate restTemplate = new RestTemplate();
-        String response = restTemplate.getForObject(url, String.class);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
+        try {
+            String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
+                    + "?ServiceKey=" + serviceKey
+                    + "&solYear=" + year
+                    + "&solMonth=" + String.format("%02d", month)
+                    + "&_type=json";
+
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+
+            ObjectMapper mapper = new ObjectMapper();
+            Object json = mapper.readValue(response.getBody(), Object.class);
+
+            return ResponseEntity.ok(json);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("공휴일 API 호출 실패: " + e.getMessage());
+        }
     }
 }
