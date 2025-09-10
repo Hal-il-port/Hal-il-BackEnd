@@ -21,5 +21,7 @@ public class Friend {
     @JoinColumn(name = "to_user_id")
     private  User toUser;
 
-    private boolean accepted;
+    @Enumerated(EnumType.STRING) // Enum 이름을 DB에 문자열로 저장
+    @Column(nullable = false)
+    private InvitationStatus status; // 변경된 코드
 }

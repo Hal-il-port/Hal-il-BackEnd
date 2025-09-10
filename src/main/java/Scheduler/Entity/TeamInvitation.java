@@ -27,8 +27,9 @@ public class TeamInvitation {
 
     private String inviteToken;
 
+    @Enumerated(EnumType.STRING) // Enum 이름을 DB에 문자열로 저장
     @Column(nullable = false)
-    private boolean accepted;
+    private InvitationStatus status; // 변경된 코드
 
     private LocalDateTime expiresAt;
 

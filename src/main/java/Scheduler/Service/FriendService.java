@@ -39,7 +39,7 @@ public class FriendService {
         Friend friend = Friend.builder()
                 .fromUser(fromUser)
                 .toUser(toUser)
-                .accepted(false)
+                .status(InvitationStatus.PENDING)
                 .build();
         friendRepository.save(friend);
 
@@ -69,13 +69,33 @@ public class FriendService {
         if (!friend.getToUser().getId().equals(user.getId()))
             throw new IllegalArgumentException("권한 없음");
 
-        friend.setAccepted(true);
+        friend.setStatus(InvitationStatus.ACCEPTED);
         friendRepository.save(friend);
 
         notificationService.sendNotification(
                 friend.getFromUser().getId(),
                 NotificationType.FRIEND_ACCEPT,
                 user.getName() + "님이 친구 요청을 수락했습니다.",
+                null
+        );
+    }
+
+    public void rejectRequest(String email, Long requestId) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
+        Friend friend = friendRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("요청 없음"));
+
+        if (!friend.getToUser().getId().equals(user.getId()))
+            throw new IllegalArgumentException("권한 없음");
+
+        friend.setStatus(InvitationStatus.REJECTED);
+        friendRepository.save(friend);
+
+        notificationService.sendNotification(
+                friend.getFromUser().getId(),
+                NotificationType.FRIEND_REJECT,
+                user.getName() + "님이 친구 요청을 거절했습니다.",
                 null
         );
     }
@@ -117,15 +137,6 @@ public class FriendService {
                     User target = f.getFromUser().equals(user) ? f.getToUser() : f.getFromUser();
                     return new FriendResponseDto(target.getId(), target.getName(), target.getEmail());
                 }).collect(Collectors.toList());
-    }
-
-    public void rejectRequest(String email, Long requestId) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
-        Friend friend = friendRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("요청 없음"));
-        if (!friend.getToUser().equals(user)) throw new IllegalArgumentException("권한 없음");
-        friendRepository.delete(friend);
     }
 
     public void cancelRequest(String email, Long requestId) {
