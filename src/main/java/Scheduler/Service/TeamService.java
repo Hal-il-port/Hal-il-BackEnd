@@ -78,7 +78,7 @@ public class TeamService {
                     .fromUser(inviter)
                     .toUser(invitee)
                     .inviteToken(token)
-                    .accepted(false)
+                    .status(InvitationStatus.PENDING)
                     .build();
             teamInvitationRepository.save(invitation);
 
@@ -213,9 +213,9 @@ public class TeamService {
             throw new IllegalStateException("초대받은 사용자만 수락할 수 있습니다.");
         }
 
-        if (invitation.isAccepted()) return;
+        if (invitation.getStatus() != InvitationStatus.PENDING) return; // 대기 상태일 때만 처리
 
-        invitation.setAccepted(true);
+        invitation.setStatus(InvitationStatus.ACCEPTED);
         teamInvitationRepository.save(invitation);
 
         teamMemberRepository.save(
@@ -242,6 +242,16 @@ public class TeamService {
             throw new IllegalStateException("초대받은 사용자만 거절할 수 있습니다.");
         }
 
-        teamInvitationRepository.delete(invitation);
+        if (invitation.getStatus() != InvitationStatus.PENDING) return;
+
+        invitation.setStatus(InvitationStatus.REJECTED);
+        teamInvitationRepository.save(invitation);
+
+        notificationService.sendNotification(
+                invitation.getFromUser().getId(),
+                NotificationType.TEAM_INVITE_REJECT,
+                invitation.getToUser().getName() + "님이 초대를 거절했습니다.",
+                invitation.getTeam().getId()
+        );
     }
 }
