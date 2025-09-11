@@ -1,6 +1,7 @@
 package Scheduler.Repository;
 
 import Scheduler.Entity.Friend;
+import Scheduler.Entity.InvitationStatus;
 import Scheduler.Entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -10,9 +11,12 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FriendRepository extends JpaRepository<Friend, Long> {
-    List<Friend> findByToUserAndAcceptedIsFalse(User toUser);
-    List<Friend> findByFromUserAndAcceptedIsTrue(User fromUser);
-    List<Friend> findByToUserAndAcceptedIsTrue(User toUser);
+    // 초대 대기 중
+    List<Friend> findByToUserAndStatus(User toUser, InvitationStatus status);
+
+    // 내가 보낸 초대 중 수락된 것들
+    List<Friend> findByFromUserAndStatus(User fromUser, InvitationStatus status);
+
     Optional<Friend> findByFromUserAndToUser(User from, User to);
 
     @Query("SELECT COUNT(f) FROM Friend f WHERE (f.fromUser = :user OR f.toUser = :user) AND f.accepted = true")
