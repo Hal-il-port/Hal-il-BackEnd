@@ -57,7 +57,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
-          script: |
+          script: |  
             # EC2 대상 경로에서 최신 JAR 파일 찾기
             # secrets.EC2_TARGET_PATH가 JAR 파일의 상위 디렉토리(예: /home/ubuntu/test)라고 가정하고,
             # JAR 파일은 그 안에 있는 'build/libs' 디렉토리에 복사됩니다.
@@ -88,7 +88,7 @@ jobs:
               --spring.datasource.url="${{ secrets.DB_URL }}" \
               --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
               --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
-              -Dholiday.api.key="${{ secrets.HOLIDAY }}"
+              --holiday.api.key="$HOLIDAY_API_KEY" \
               > ${{ secrets.EC2_TARGET_PATH }}/build/libs/app.log 2>&1 < /dev/null &
             
             echo "Application restart script completed."
