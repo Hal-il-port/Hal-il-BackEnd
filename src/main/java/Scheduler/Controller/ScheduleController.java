@@ -73,7 +73,6 @@ public class ScheduleController {
     @Value("${HOLIDAY_API_KEY}")
     private String serviceKey;
 
-    @Operation(summary = "공휴일", description = "공휴일 공공데이터를 가져옵니다.")
     @GetMapping("/holidays")
     public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
         try {
@@ -86,8 +85,13 @@ public class ScheduleController {
             RestTemplate restTemplate = new RestTemplate();
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
+            String body = response.getBody();
+            if (!response.getStatusCode().is2xxSuccessful() || body.startsWith("<")) {
+                return ResponseEntity.status(500).body("공휴일 API 호출 실패: HTML 응답 또는 상태코드 " + response.getStatusCode());
+            }
+
             ObjectMapper mapper = new ObjectMapper();
-            Object json = mapper.readValue(response.getBody(), Object.class);
+            Object json = mapper.readValue(body, Object.class);
 
             return ResponseEntity.ok(json);
         } catch (Exception e) {
