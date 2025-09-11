@@ -46,6 +46,7 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/swagger-ui/index.html",
+                    "/api/schedules/holidays",
                         "/v3/api-docs/**"
                 ).permitAll()
                 .anyRequest().authenticated()
