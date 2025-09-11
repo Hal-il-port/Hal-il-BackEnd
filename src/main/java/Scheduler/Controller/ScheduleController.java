@@ -25,6 +25,9 @@ import java.util.List;
 @Tag(name = "일정", description = "개인 및 팀 일정 관련 API")
 public class ScheduleController {
 
+    @Value("${HOLIDAY_API_KEY}")
+    private String serviceKey;
+
     private final ScheduleService scheduleService;
 
     @Operation(summary = "일정 생성", description = "사용자의 일정을 생성합니다.")
@@ -71,9 +74,6 @@ public class ScheduleController {
         scheduleService.delete(id);
         return ResponseEntity.ok().build();
     }
-
-    @Value("${HOLIDAY_API_KEY}")
-    private String serviceKey;
 
     @GetMapping("/holidays")
     public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
