@@ -19,15 +19,17 @@ public interface FriendRepository extends JpaRepository<Friend, Long> {
 
     Optional<Friend> findByFromUserAndToUser(User from, User to);
 
-    @Query("SELECT COUNT(f) FROM Friend f WHERE (f.fromUser = :user OR f.toUser = :user) AND f.accepted = true")
+    @Query("SELECT COUNT(f) FROM Friend f WHERE (f.fromUser = :user OR f.toUser = :user) AND f.status = 'ACCEPTED'")
     int countAllFriends(@Param("user") User user);
 
-    @Query("SELECT f FROM Friend f WHERE f.accepted = true AND (f.fromUser = :user OR f.toUser = :user) AND (f.fromUser.name LIKE %:keyword% OR f.fromUser.email LIKE %:keyword% OR f.toUser.name LIKE %:keyword% OR f.toUser.email LIKE %:keyword%)")
+    @Query("SELECT f FROM Friend f WHERE f.status = 'ACCEPTED' AND (f.fromUser = :user OR f.toUser = :user) " +
+            "AND (f.fromUser.name LIKE %:keyword% OR f.fromUser.email LIKE %:keyword% OR f.toUser.name LIKE %:keyword% OR f.toUser.email LIKE %:keyword%)")
     List<Friend> searchFriends(@Param("user") User user, @Param("keyword") String keyword);
 
-    @Query("SELECT f FROM Friend f WHERE f.accepted = true AND ((f.fromUser = :user AND f.toUser = :target) OR (f.fromUser = :target AND f.toUser = :user))")
+    @Query("SELECT f FROM Friend f WHERE f.status = 'ACCEPTED' AND " +
+            "((f.fromUser = :user AND f.toUser = :target) OR (f.fromUser = :target AND f.toUser = :user))")
     Optional<Friend> findFriendRelation(@Param("user") User user, @Param("target") User target);
 
-    @Query("SELECT f FROM Friend f JOIN FETCH f.fromUser WHERE f.toUser.email = :email AND f.accepted = false")
+    @Query("SELECT f FROM Friend f JOIN FETCH f.fromUser WHERE f.toUser.email = :email AND f.status = 'PENDING'")
     List<Friend> findPendingRequestsByToUserEmail(@Param("email") String email);
 }
