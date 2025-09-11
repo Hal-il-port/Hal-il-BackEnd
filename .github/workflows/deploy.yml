@@ -88,7 +88,7 @@ jobs:
               --spring.datasource.url="${{ secrets.DB_URL }}" \
               --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
               --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
-              -Dholiday.api.key='${{ secrets.HOLIDAY_API_KEY }}' \
+              -Dholiday.api.key="${{ secrets.HOLIDAY_API_KEY }}" \
               > ${{ secrets.EC2_TARGET_PATH }}/build/libs/app.log 2>&1 < /dev/null &
             
             echo "Application restart script completed."
