@@ -15,6 +15,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -76,8 +78,9 @@ public class ScheduleController {
     @GetMapping("/holidays")
     public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
         try {
+            String encodedKey = URLEncoder.encode(serviceKey, StandardCharsets.UTF_8);
             String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
-                    + "?ServiceKey=" + serviceKey
+                    + "?ServiceKey=" + encodedKey
                     + "&solYear=" + year
                     + "&solMonth=" + String.format("%02d", month)
                     + "&_type=json";
