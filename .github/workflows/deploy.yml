@@ -90,7 +90,8 @@ jobs:
               --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
               --HOLIDAY_API_KEY='${{ secrets.HOLIDAY_API_KEY }}' \
               > ${{ secrets.EC2_TARGET_PATH }}/build/libs/app.log 2>&1 < /dev/null &
-
+            
+            export HOLIDAY_API_KEY='${{ secrets.HOLIDAY_API_KEY }}'
             echo "Application restart script completed."
             EOF_SCRIPT
 
