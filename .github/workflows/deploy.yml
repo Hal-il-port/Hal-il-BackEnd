@@ -96,5 +96,7 @@ jobs:
 
             chmod +x /tmp/restart_app.sh
             
+            echo "Scheduling application restart via 'at' command." # 'at -f' 옵션을 사용하여 스크립트 파일을 실행하도록 지시 # 이제 /tmp/restart_app.sh 파일 자체에 모든 필요한 값이 포함되어 있으므로 # 'at' 명령에 추가적인 환경 변수를 전달할 필요가 없습니다. at -f /tmp/restart_app.sh now
+            
             echo "Application restart scheduled. GitHub Actions will now exit."
             exit 0 # SSH 액션이 성공적으로 종료되도록 명시적으로 exit 0
