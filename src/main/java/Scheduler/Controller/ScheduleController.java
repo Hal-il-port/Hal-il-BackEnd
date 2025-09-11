@@ -72,7 +72,7 @@ public class ScheduleController {
         return ResponseEntity.ok().build();
     }
 
-    @Value("${HOLIDAY_API_KEY}")
+    @Value("${holiday.api.key}")
     private String serviceKey;
 
     @GetMapping("/holidays")
