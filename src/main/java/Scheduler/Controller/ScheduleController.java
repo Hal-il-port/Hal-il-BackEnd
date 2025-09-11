@@ -80,7 +80,7 @@ public class ScheduleController {
         try {
             // serviceKey 값이 무엇인지 콘솔에 출력하여 확인
             System.out.println("전달되는 서비스 키: " + serviceKey);
-            
+
             String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
                     + "?ServiceKey=" + serviceKey
                     + "&solYear=" + year
