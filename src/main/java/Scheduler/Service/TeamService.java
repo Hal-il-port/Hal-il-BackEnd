@@ -95,7 +95,8 @@ public class TeamService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
 
-        List<TeamInvitation> invitations = teamInvitationRepository.findByToUserAndAcceptedFalse(user);
+        List<TeamInvitation> invitations = teamInvitationRepository.findByToUserAndStatus(user, InvitationStatus.PENDING);
+
 
         return invitations.stream()
                 .map(invite -> {

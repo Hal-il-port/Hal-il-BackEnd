@@ -26,6 +26,7 @@ public class FriendService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
 
+    // 친구 요청 보내기
     public void sendRequest(String fromEmail, FriendRequestDto request) {
         User fromUser = userRepository.findByEmail(fromEmail)
                 .orElseThrow(() -> new IllegalArgumentException("요청자 정보 없음"));
@@ -39,7 +40,7 @@ public class FriendService {
         Friend friend = Friend.builder()
                 .fromUser(fromUser)
                 .toUser(toUser)
-                .status(InvitationStatus.PENDING)
+                .status(InvitationStatus.PENDING) // ✅ enum 사용
                 .build();
         friendRepository.save(friend);
 
@@ -47,25 +48,27 @@ public class FriendService {
                 toUser.getId(),
                 NotificationType.FRIEND_REQUEST,
                 fromUser.getName() + "님이 친구 요청을 보냈습니다.",
-                friend.getId() // 친구 요청이면 특정 페이지 이동 값 없으면 null
+                friend.getId()
         );
     }
 
+    // 내가 받은 요청 (PENDING 상태만)
     public List<FriendResponseDto> getReceivedRequests(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
-        return friendRepository.findByToUserAndAcceptedIsFalse(user).stream()
+
+        return friendRepository.findByToUserAndStatus(user, InvitationStatus.PENDING).stream()
                 .map(f -> new FriendResponseDto(f.getId(), f.getFromUser().getName(), f.getFromUser().getEmail()))
                 .collect(Collectors.toList());
     }
 
+    // 친구 요청 수락
     public void acceptRequest(String email, Long requestId) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
         Friend friend = friendRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("요청 없음"));
 
-        // equals 대신 ID 비교
         if (!friend.getToUser().getId().equals(user.getId()))
             throw new IllegalArgumentException("권한 없음");
 
@@ -80,6 +83,7 @@ public class FriendService {
         );
     }
 
+    // 친구 요청 거절
     public void rejectRequest(String email, Long requestId) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
@@ -100,6 +104,7 @@ public class FriendService {
         );
     }
 
+    // 친구 삭제
     public void deleteFriend(String userEmail, String friendEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
@@ -110,11 +115,13 @@ public class FriendService {
         friendRepository.delete(relation);
     }
 
+    // 내 친구 목록 (ACCEPTED 상태만)
     public List<FriendResponseDto> getMyFriends(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
-        List<Friend> sent = friendRepository.findByFromUserAndAcceptedIsTrue(user);
-        List<Friend> received = friendRepository.findByToUserAndAcceptedIsTrue(user);
+
+        List<Friend> sent = friendRepository.findByFromUserAndStatus(user, InvitationStatus.ACCEPTED);
+        List<Friend> received = friendRepository.findByToUserAndStatus(user, InvitationStatus.ACCEPTED);
 
         return Stream.concat(sent.stream().map(F -> F.getToUser()), received.stream().map(F -> F.getFromUser()))
                 .distinct()
@@ -139,12 +146,20 @@ public class FriendService {
                 }).collect(Collectors.toList());
     }
 
+    // 요청 취소 (내가 보낸 PENDING 요청만 취소 가능)
     public void cancelRequest(String email, Long requestId) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("유저 정보 없음"));
         Friend friend = friendRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("요청 없음"));
-        if (!friend.getFromUser().equals(user)) throw new IllegalArgumentException("권한 없음");
+
+        if (!friend.getFromUser().equals(user))
+            throw new IllegalArgumentException("권한 없음");
+
+        if (friend.getStatus() != InvitationStatus.PENDING) {
+            throw new IllegalArgumentException("이미 처리된 요청은 취소 불가");
+        }
+
         friendRepository.delete(friend);
     }
 }
