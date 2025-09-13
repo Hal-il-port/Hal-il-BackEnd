@@ -64,42 +64,20 @@ jobs:
             LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/build/libs/*.jar | head -n1)
             echo "Latest JAR found: $LATEST_JAR"
 
-            # 애플리케이션 재시작 스크립트를 임시 파일로 생성
-            # 'here document' 문법을 사용하여 스크립트 내용을 파일에 직접 작성합니다.
-            # 'EOF_SCRIPT'를 따옴표 없이 사용하여 GitHub Actions 시크릿과 쉘 변수들이
-            # 이 시점에서 (GitHub Actions Runner에서) 확장되도록 합니다.
-            cat <<EOF_SCRIPT > /tmp/restart_app.sh
-            #!/bin/bash
-            # 기존 Java 프로세스 종료
-            # ${{ secrets.JAR_NAME }}은 GitHub Actions Runner에서 실제 값으로 확장됩니다.
-            if pgrep -f "${{ secrets.JAR_NAME }}"; then
-              echo "Killing existing process for ${{ secrets.JAR_NAME }}"
-              pkill -f "${{ secrets.JAR_NAME }}"
-              sleep 5
-            else
-              echo "No existing process for ${{ secrets.JAR_NAME }} found."
+            # 기존 프로세스 종료
+            if [ -f ${{ secrets.EC2_TARGET_PATH }}/app.pid ]; then
+            kill -9 $(cat ${{ secrets.EC2_TARGET_PATH }}/app.pid) || true
+            rm -f ${{ secrets.EC2_TARGET_PATH }}/app.pid
             fi
 
-            # 새로운 Java 애플리케이션을 백그라운드에서 시작
-            # ${{ secrets.DB_URL }} 등은 GitHub Actions Runner에서 실제 값으로 확장됩니다.
-            # \$LATEST_JAR는 /tmp/restart_app.sh 스크립트가 실행될 때 확장되도록 이스케이프 처리합니다.
-            echo "Starting application with JAR: $LATEST_JAR"
-            nohup setsid java -jar "$LATEST_JAR" \
-              --spring.datasource.url="${{ secrets.DB_URL }}" \
-              --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
-              --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
-              --holiday.api.key="${{ secrets.HOLIDAY }}" \
-              > ${{ secrets.EC2_TARGET_PATH }}/build/libs/app.log 2>&1 < /dev/null &
-            
-            disown
-  
-            echo "Application restart script completed."
-            EOF_SCRIPT
-  
-            chmod +x /tmp/restart_app.sh
-  
-            echo "Executing restart script now."
-            /tmp/restart_app.sh
-            
-            echo "Application restart scheduled. GitHub Actions will now exit."
-            exit 0 # SSH 액션이 성공적으로 종료되도록 명시적으로 exit 0
+      # 새로 실행
+            nohup java -jar "$LATEST_JAR" \
+            --spring.datasource.url="${{ secrets.DB_URL }}" \
+            --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
+            --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
+            --holiday.api.key="${{ secrets.HOLIDAY }}" \
+            > ${{ secrets.EC2_TARGET_PATH }}/app.log 2>&1 &
+
+            echo $! > ${{ secrets.EC2_TARGET_PATH }}/app.pid
+            echo "Application started with PID $(cat ${{ secrets.EC2_TARGET_PATH }}/app.pid)"
+            exit 0
