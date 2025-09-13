@@ -1,3 +1,4 @@
+
 name: Deploy to EC2
 
 on:
@@ -26,12 +27,11 @@ jobs:
           echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> $GITHUB_ENV
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
           echo "holiday.api.key=${{ secrets.HOLIDAY }}" >> $GITHUB_ENV
-
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Build with Gradle
-        run: ./gradlew clean build -x test --no-daemon
+        run: ./gradlew clean build -x test
 
       - name: Copy JAR to EC2
         uses: appleboy/scp-action@v0.1.7
@@ -50,20 +50,18 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           script: |
             echo '${{ secrets.FIREBASE_ADMIN_SDK }}' > ${{ secrets.EC2_TARGET_PATH }}/config/hal-il-project-firebase-adminsdk-fbsvc-d93ce33edb.json
-
       - name: SSH into EC2 and restart app
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
-          script: |  
+          script: |
             # EC2 대상 경로에서 최신 JAR 파일 찾기
             # secrets.EC2_TARGET_PATH가 JAR 파일의 상위 디렉토리(예: /home/ubuntu/test)라고 가정하고,
             # JAR 파일은 그 안에 있는 'build/libs' 디렉토리에 복사됩니다.
             LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/build/libs/*.jar | head -n1)
             echo "Latest JAR found: $LATEST_JAR"
-
             # 애플리케이션 재시작 스크립트를 임시 파일로 생성
             # 'here document' 문법을 사용하여 스크립트 내용을 파일에 직접 작성합니다.
             # 'EOF_SCRIPT'를 따옴표 없이 사용하여 GitHub Actions 시크릿과 쉘 변수들이
@@ -79,7 +77,6 @@ jobs:
             else
               echo "No existing process for ${{ secrets.JAR_NAME }} found."
             fi
-
             # 새로운 Java 애플리케이션을 백그라운드에서 시작
             # ${{ secrets.DB_URL }} 등은 GitHub Actions Runner에서 실제 값으로 확장됩니다.
             # \$LATEST_JAR는 /tmp/restart_app.sh 스크립트가 실행될 때 확장되도록 이스케이프 처리합니다.
@@ -88,16 +85,14 @@ jobs:
               --spring.datasource.url="${{ secrets.DB_URL }}" \
               --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
               --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
-              --holiday.api.key="${{ secrets.HOLIDAY }}" \
+              --holiday.api.key="${{ secrets.HOLIDAY }}"
               > ${{ secrets.EC2_TARGET_PATH }}/build/libs/app.log 2>&1 < /dev/null &
-          
+            
             echo "Application restart script completed."
             EOF_SCRIPT
-  
             chmod +x /tmp/restart_app.sh
-  
-            echo "Executing restart script now."
-            /tmp/restart_app.sh
+            
+            echo "Scheduling application restart via 'at' command." # 'at -f' 옵션을 사용하여 스크립트 파일을 실행하도록 지시 # 이제 /tmp/restart_app.sh 파일 자체에 모든 필요한 값이 포함되어 있으므로 # 'at' 명령에 추가적인 환경 변수를 전달할 필요가 없습니다. at -f /tmp/restart_app.sh now
             
             echo "Application restart scheduled. GitHub Actions will now exit."
             exit 0 # SSH 액션이 성공적으로 종료되도록 명시적으로 exit 0
