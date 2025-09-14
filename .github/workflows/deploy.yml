@@ -8,6 +8,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -18,7 +19,13 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Grant execute permission for Gradlew
+      # 이 단계는 이제 필수는 아니지만, 다른 용도로 필요할 수 있으므로 유지합니다.
+      - name: Inject environment variables
+        run: |
+          echo "DB_URL=${{ secrets.DB_URL }}" >> $GITHUB_ENV
+          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> $GITHUB_ENV
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
+      - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Build with Gradle
@@ -40,51 +47,51 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            # config 디렉토리가 없으면 생성합니다.
-            mkdir -p ${{ secrets.EC2_TARGET_PATH }}/config
-            echo '${{ secrets.FIREBASE_ADMIN_SDK }}' > ${{ secrets.EC2_TARGET_PATH }}/config/firebase-adminsdk.json
-
-      - name: Deploy and Restart on EC2
+            echo '${{ secrets.FIREBASE_ADMIN_SDK }}' > ${{ secrets.EC2_TARGET_PATH }}/config/hal-il-project-firebase-adminsdk-fbsvc-d93ce33edb.json
+      - name: SSH into EC2 and restart app
         uses: appleboy/ssh-action@v0.1.10
         with:
-            host: ${{ secrets.EC2_HOST }}
-            username: ${{ secrets.EC2_USER }}
-            key: ${{ secrets.EC2_KEY }}
-            script: |
-              TARGET_DIR=${{ secrets.EC2_TARGET_PATH }}
-              echo "--- Deployment script started on EC2 ---"
-              echo "Target directory is: $TARGET_DIR"
-              
-              echo "--- [Step 1] Verifying copied files in target directory... ---"
-              ls -al $TARGET_DIR
-              
-              echo "--- [Step 2] Finding the latest JAR file (including subdirectories)... ---"
-              # -maxdepth 1 옵션을 제거하여 하위 디렉토리까지 모두 검색하도록 수정
-              LATEST_JAR=$(find "$TARGET_DIR" -name "*.jar" | sort -r | head -n 1)
-              
-              if [ -z "$LATEST_JAR" ]; then
-                echo "🔴 ERROR: No .jar file found anywhere within $TARGET_DIR. Please check the 'Copy JAR to EC2' step."
-                exit 1
-              fi
-              
-              echo "✅ SUCCESS: Latest JAR found -> $LATEST_JAR"
-              
-              echo "--- [Step 3] Killing existing application process... ---"
-              if pgrep -f "${{ secrets.JAR_NAME }}"; then
-                echo "Killing existing process for ${{ secrets.JAR_NAME }}..."
-                pkill -f "${{ secrets.JAR_NAME }}"
-                sleep 5
-              else
-                echo "No existing process for ${{ secrets.JAR_NAME }} found. Skipping."
-              fi
-              
-              echo "--- [Step 4] Starting new application process... ---"
-              LOG_FILE="$TARGET_DIR/app.log"
-              nohup java -jar "$LATEST_JAR" \
-                --spring.datasource.url="${{ secrets.DB_URL }}" \
-                --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
-                --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
-                --holiday.api.key="${{ secrets.HOLIDAY }}" \
-                > "$LOG_FILE" 2>&1 &
-              
-              echo "--- ✅ Deployment finished successfully! ---"
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            # EC2 대상 경로에서 최신 JAR 파일 찾기
+            # secrets.EC2_TARGET_PATH가 JAR 파일의 상위 디렉토리(예: /home/ubuntu/test)라고 가정하고,
+            # JAR 파일은 그 안에 있는 'build/libs' 디렉토리에 복사됩니다.
+            LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/build/libs/*.jar | head -n1)
+            echo "Latest JAR found: $LATEST_JAR"
+            # 애플리케이션 재시작 스크립트를 임시 파일로 생성
+            # 'here document' 문법을 사용하여 스크립트 내용을 파일에 직접 작성합니다.
+            # 'EOF_SCRIPT'를 따옴표 없이 사용하여 GitHub Actions 시크릿과 쉘 변수들이
+            # 이 시점에서 (GitHub Actions Runner에서) 확장되도록 합니다.
+            cat <<EOF_SCRIPT > /tmp/restart_app.sh
+            #!/bin/bash
+            # 기존 Java 프로세스 종료
+            # ${{ secrets.JAR_NAME }}은 GitHub Actions Runner에서 실제 값으로 확장됩니다.
+            if pgrep -f "${{ secrets.JAR_NAME }}"; then
+              echo "Killing existing process for ${{ secrets.JAR_NAME }}"
+              pkill -f "${{ secrets.JAR_NAME }}"
+              sleep 5
+            else
+              echo "No existing process for ${{ secrets.JAR_NAME }} found."
+            fi
+            # 새로운 Java 애플리케이션을 백그라운드에서 시작
+            # ${{ secrets.DB_URL }} 등은 GitHub Actions Runner에서 실제 값으로 확장됩니다.
+            # \$LATEST_JAR는 /tmp/restart_app.sh 스크립트가 실행될 때 확장되도록 이스케이프 처리합니다.
+            echo "Starting application with JAR: $LATEST_JAR"
+            nohup setsid java -jar "$LATEST_JAR" \
+              --spring.datasource.url="${{ secrets.DB_URL }}" \
+              --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
+              --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
+              --holiday.api.key="${{ secrets.HOLIDAY }}" \
+              > ${{ secrets.EC2_TARGET_PATH }}/app.log 2>&1 < /dev/null &
+            echo "Application restart script completed."
+            EOF_SCRIPT
+            chmod +x /tmp/restart_app.sh
+            echo "Scheduling application restart via 'at' command."
+            # 'at -f' 옵션을 사용하여 스크립트 파일을 실행하도록 지시
+            # 이제 /tmp/restart_app.sh 파일 자체에 모든 필요한 값이 포함되어 있으므로
+            # 'at' 명령에 추가적인 환경 변수를 전달할 필요가 없습니다.
+            at -f /tmp/restart_app.sh now
+            echo "Application restart scheduled. GitHub Actions will now exit."
+            exit 0 # SSH 액션이 성공적으로 종료되도록 명시적으로 exit 0
