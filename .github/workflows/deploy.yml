@@ -33,16 +33,6 @@ jobs:
           source: "build/libs/*.jar"
           target: ${{ secrets.EC2_TARGET_PATH }}
 
-      - name: Verify File Copy on EC2
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          script: |
-           echo "--- Verifying contents of ${{ secrets.EC2_TARGET_PATH }} ---"
-           ls -al ${{ secrets.EC2_TARGET_PATH }}
-
       - name: Create Firebase Admin SDK file on EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -54,41 +44,47 @@ jobs:
             mkdir -p ${{ secrets.EC2_TARGET_PATH }}/config
             echo '${{ secrets.FIREBASE_ADMIN_SDK }}' > ${{ secrets.EC2_TARGET_PATH }}/config/firebase-adminsdk.json
 
-      - name: Restart Spring Boot App on EC2
+      - name: Deploy and Restart on EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          script: |
-            TARGET_DIR=${{ secrets.EC2_TARGET_PATH }}
-            LATEST_JAR=$(ls -t $TARGET_DIR/*.jar | head -n1)
-
-            # --- 중요: JAR 파일이 존재하는지 확인 ---
-            if [ -z "$LATEST_JAR" ]; then
-              echo "Error: No JAR file found in $TARGET_DIR. Deployment failed."
-              exit 1
-            fi
-
-            echo "Latest JAR found: $LATEST_JAR"
-
-            # 기존 프로세스 종료
-            if pgrep -f "${{ secrets.JAR_NAME }}"; then
-              echo "Killing existing process for ${{ secrets.JAR_NAME }}..."
-              pkill -f "${{ secrets.JAR_NAME }}"
-              sleep 5
-            else
-              echo "No existing process for ${{ secrets.JAR_NAME }} found."
-            fi
-
-            # 새 프로세스 실행
-            LOG_FILE="$TARGET_DIR/app.log"
-            echo "Starting application with JAR: $LATEST_JAR"
-            nohup java -jar "$LATEST_JAR" \
-              --spring.datasource.url="${{ secrets.DB_URL }}" \
-              --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
-              --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
-              --holiday.api.key="${{ secrets.HOLIDAY }}" \
-              > "$LOG_FILE" 2>&1 &
-            
-            echo "Deployment finished. Check logs at $LOG_FILE"
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.EC2_USER }}
+            key: ${{ secrets.EC2_KEY }}
+            script: |
+              TARGET_DIR=${{ secrets.EC2_TARGET_PATH }}
+              echo "--- Deployment script started on EC2 ---"
+              echo "Target directory is: $TARGET_DIR"
+              
+              echo "--- [Step 1] Verifying copied files in target directory... ---"
+              ls -al $TARGET_DIR
+              
+              # 'ls' 대신 'find'를 사용하여 .jar 파일을 더 안정적으로 찾습니다.
+              echo "--- [Step 2] Finding the latest JAR file... ---"
+              LATEST_JAR=$(find "$TARGET_DIR" -maxdepth 1 -name "*.jar" | sort -r | head -n 1)
+              
+              if [ -z "$LATEST_JAR" ]; then
+                echo "🔴 ERROR: No .jar file found in $TARGET_DIR. Please check the 'Copy JAR to EC2' step."
+                exit 1
+              fi
+              
+              echo "✅ SUCCESS: Latest JAR found -> $LATEST_JAR"
+              
+              echo "--- [Step 3] Killing existing application process... ---"
+              if pgrep -f "${{ secrets.JAR_NAME }}"; then
+                echo "Killing existing process for ${{ secrets.JAR_NAME }}..."
+                pkill -f "${{ secrets.JAR_NAME }}"
+                sleep 5
+              else
+                echo "No existing process for ${{ secrets.JAR_NAME }} found. Skipping."
+              fi
+              
+              echo "--- [Step 4] Starting new application process... ---"
+              LOG_FILE="$TARGET_DIR/app.log"
+              nohup java -jar "$LATEST_JAR" \
+                --spring.datasource.url="${{ secrets.DB_URL }}" \
+                --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
+                --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
+                --holiday.api.key="${{ secrets.HOLIDAY }}" \
+                > "$LOG_FILE" 2>&1 &
+              
+              echo "--- ✅ Deployment finished successfully! ---"
