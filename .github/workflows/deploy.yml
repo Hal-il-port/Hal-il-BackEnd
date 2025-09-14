@@ -33,6 +33,16 @@ jobs:
           source: "build/libs/*.jar"
           target: ${{ secrets.EC2_TARGET_PATH }}
 
+      - name: Verify File Copy on EC2
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+           echo "--- Verifying contents of ${{ secrets.EC2_TARGET_PATH }} ---"
+           ls -al ${{ secrets.EC2_TARGET_PATH }}
+
       - name: Create Firebase Admin SDK file on EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
