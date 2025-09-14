@@ -1,4 +1,3 @@
-
 name: Deploy to EC2
 
 on:
@@ -9,7 +8,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -42,6 +40,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
+            # config 디렉토리가 없으면 생성합니다.
             mkdir -p ${{ secrets.EC2_TARGET_PATH }}/config
             echo '${{ secrets.FIREBASE_ADMIN_SDK }}' > ${{ secrets.EC2_TARGET_PATH }}/config/firebase-adminsdk.json
 
@@ -52,7 +51,15 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            LATEST_JAR=$(ls -t ${{ secrets.EC2_TARGET_PATH }}/*.jar | head -n1)
+            TARGET_DIR=${{ secrets.EC2_TARGET_PATH }}
+            LATEST_JAR=$(ls -t $TARGET_DIR/*.jar | head -n1)
+
+            # --- 중요: JAR 파일이 존재하는지 확인 ---
+            if [ -z "$LATEST_JAR" ]; then
+              echo "Error: No JAR file found in $TARGET_DIR. Deployment failed."
+              exit 1
+            fi
+
             echo "Latest JAR found: $LATEST_JAR"
 
             # 기존 프로세스 종료
@@ -65,11 +72,13 @@ jobs:
             fi
 
             # 새 프로세스 실행
+            LOG_FILE="$TARGET_DIR/app.log"
             echo "Starting application with JAR: $LATEST_JAR"
-            setsid nohup java -jar "$LATEST_JAR" \
+            nohup java -jar "$LATEST_JAR" \
               --spring.datasource.url="${{ secrets.DB_URL }}" \
               --spring.datasource.username="${{ secrets.DB_USERNAME }}" \
               --spring.datasource.password="${{ secrets.DB_PASSWORD }}" \
               --holiday.api.key="${{ secrets.HOLIDAY }}" \
-              > ${{ secrets.EC2_TARGET_PATH }}/app.log 2>&1 < /dev/null &
-            echo "Deployment finished."
+              > "$LOG_FILE" 2>&1 &
+            
+            echo "Deployment finished. Check logs at $LOG_FILE"
