@@ -58,12 +58,12 @@ jobs:
               echo "--- [Step 1] Verifying copied files in target directory... ---"
               ls -al $TARGET_DIR
               
-              # 'ls' 대신 'find'를 사용하여 .jar 파일을 더 안정적으로 찾습니다.
-              echo "--- [Step 2] Finding the latest JAR file... ---"
-              LATEST_JAR=$(find "$TARGET_DIR" -maxdepth 1 -name "*.jar" | sort -r | head -n 1)
+              echo "--- [Step 2] Finding the latest JAR file (including subdirectories)... ---"
+              # -maxdepth 1 옵션을 제거하여 하위 디렉토리까지 모두 검색하도록 수정
+              LATEST_JAR=$(find "$TARGET_DIR" -name "*.jar" | sort -r | head -n 1)
               
               if [ -z "$LATEST_JAR" ]; then
-                echo "🔴 ERROR: No .jar file found in $TARGET_DIR. Please check the 'Copy JAR to EC2' step."
+                echo "🔴 ERROR: No .jar file found anywhere within $TARGET_DIR. Please check the 'Copy JAR to EC2' step."
                 exit 1
               fi
               
