@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -78,20 +81,35 @@ public class ScheduleController {
     @GetMapping("/holidays")
     public ResponseEntity<Object> getHolidays(@RequestParam int year, @RequestParam int month) {
         try {
-            // serviceKey 값이 무엇인지 콘솔에 출력하여 확인
             System.out.println("전달되는 서비스 키: " + serviceKey);
+
+            // 월을 2자리로 포맷
+            String formattedMonth = String.format("%02d", month);
 
             String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
                     + "?ServiceKey=" + serviceKey
                     + "&solYear=" + year
-                    + "&solMonth=" + String.format("%02d", month)
+                    + "&solMonth=" + formattedMonth
                     + "&_type=json";
 
+            System.out.println("요청 URL: " + url);
+
+            // RestTemplate 생성
             RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+
+            // 헤더 설정 (JSON 요청)
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Accept", "application/json"); // JSON 응답 요청
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
             String body = response.getBody();
-            if (!response.getStatusCode().is2xxSuccessful() || body.startsWith("<")) {
+            System.out.println("API 응답 상태: " + response.getStatusCode());
+            System.out.println("응답 바디 일부: " + (body != null ? body.substring(0, Math.min(200, body.length())) : "null"));
+
+            if (!response.getStatusCode().is2xxSuccessful() || body == null || body.startsWith("<")) {
                 return ResponseEntity.status(500).body("공휴일 API 호출 실패: HTML 응답 또는 상태코드 " + response.getStatusCode());
             }
 
@@ -99,6 +117,7 @@ public class ScheduleController {
             Object json = mapper.readValue(body, Object.class);
 
             return ResponseEntity.ok(json);
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body("공휴일 API 호출 실패: " + e.getMessage());
