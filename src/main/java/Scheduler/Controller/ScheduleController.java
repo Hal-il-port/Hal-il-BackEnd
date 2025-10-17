@@ -87,7 +87,7 @@ public class ScheduleController {
             String formattedMonth = String.format("%02d", month);
 
             String url = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo"
-                    + "?ServiceKey=" + serviceKey
+                    + "?serviceKey=" + serviceKey
                     + "&solYear=" + year
                     + "&solMonth=" + formattedMonth
                     + "&_type=json";
