@@ -15,7 +15,7 @@ public class FirebaseConfig {
     @Bean
     public FirebaseApp firebaseApp() throws Exception {
         FileInputStream serviceAccount =
-                new FileInputStream("/home/ubuntu/test/config/hal-il-project-firebase-adminsdk-fbsvc-d93ce33edb.json");
+                new FileInputStream("/home/ubuntu/test/config/hali-il-firebase-adminsdk-fbsvc-e29236943e.json");
 
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
